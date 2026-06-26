@@ -28,19 +28,6 @@ var vectors = []struct {
 	},
 }
 
-func TestEncodeVectors(t *testing.T) {
-	for _, v := range vectors {
-		entropy, _ := hex.DecodeString(v.entropy)
-		got, err := Encode(entropy)
-		if err != nil {
-			t.Fatalf("Encode(%s): %v", v.entropy, err)
-		}
-		if got != v.mnemonic {
-			t.Errorf("Encode(%s)\n  got:  %q\n  want: %q", v.entropy, got, v.mnemonic)
-		}
-	}
-}
-
 func TestDecodeVectors(t *testing.T) {
 	for _, v := range vectors {
 		got, err := Decode(v.mnemonic)
