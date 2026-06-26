@@ -1,9 +1,13 @@
-// Command bip39wordstokey converts between BIP39 mnemonic words and their
-// underlying key (the entropy, in hex). It works in both directions and
-// auto-detects which way to go from the shape of the input.
+// Command bip39wordstokey turns a BIP39 mnemonic into its Ethereum wallet key.
+// Given a phrase it derives the seed (BIP39 PBKDF2), the BIP32 master key, and
+// the account at the standard path m/44'/60'/0'/0/0, then prints the entropy,
+// the secp256k1 private key, and the EIP-55 checksummed address.
 //
-//	words  -> key:   abandon abandon ... about   ->  00000000000000000000000000000000
-//	key    -> words: 00000000000000000000000000000000  ->  abandon abandon ... about
+// The reverse direction still works for the plain entropy <-> words mapping: a
+// bare hex string is treated as entropy and expanded back into words.
+//
+//	words -> key:   abandon abandon ... about  ->  entropy / private key / address
+//	key   -> words: 00000000000000000000000000000000  ->  abandon abandon ... about
 //
 // Input can come from arguments, a file (-f), or stdin. Each non-empty line
 // is converted independently, so a file with many phrases or keys just works.
@@ -51,12 +55,25 @@ func convert(line string) (string, error) {
 		return Encode(entropy)
 	}
 
-	// Otherwise treat it as a mnemonic and return the key.
+	// Otherwise treat it as a mnemonic. Decode validates the checksum and
+	// recovers the entropy; derivation gives the Ethereum key and address.
 	entropy, err := Decode(trimmed)
 	if err != nil {
 		return "", err
 	}
-	return hex.EncodeToString(entropy), nil
+	mnemonic := normalizeMnemonic(trimmed)
+	privateKey, address, err := deriveEthereum(mnemonic, "")
+	if err != nil {
+		return "", err
+	}
+	return fmt.Sprintf("entropy:     %s\nprivate key: %s\naddress:     %s",
+		hex.EncodeToString(entropy), privateKey, address), nil
+}
+
+// normalizeMnemonic lowercases the phrase and collapses runs of whitespace to a
+// single space so the PBKDF2 input matches the canonical BIP39 form.
+func normalizeMnemonic(mnemonic string) string {
+	return strings.Join(strings.Fields(strings.ToLower(mnemonic)), " ")
 }
 
 func main() {
